@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: example-app-service
+  namespace: new-ns
+spec:
+  selector: # This specifies how the service selects the pods it should route traffic to.
+    app: userinfo-app # The selector specifies that the Service should route traffic to pods with the label "app" set to "example-app." This label selector matches the label defined in the Deployment
+  ports: # Defines the ports and protocols used for the Service.
+    - protocol: TCP
+      name: userinfo-port
+      port: 8081 # The port on which the service listens for traffic
+      targetPort: 8080 # The port on the pod to which the traffic is routed

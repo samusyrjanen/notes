@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: example-app
+  namespace: new-ns
+  labels:
+    app: example-app
+spec:
+  selector:
+    matchLabels:
+      app: userinfo-app
+  template:
+    metadata:
+      labels:
+        app: userinfo-app
+    spec:
+      containers:
+      - name: userinfo-app
+        image: docker.io/yumol/myapp:v1
+        ports: 
+        - containerPort: 8080
+        env:
+          - name: USER_ACCOUNT
+            valueFrom:
+              configMapKeyRef:
+                name: useraccount-configmap
+                key: USER_ACCOUNT
+          - name: PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: userpwd-secret
+                key: PASSWORD

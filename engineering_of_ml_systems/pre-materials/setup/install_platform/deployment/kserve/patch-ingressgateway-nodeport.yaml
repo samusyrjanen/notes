@@ -1,0 +1,8 @@
+spec:
+  type: LoadBalancer
+  ports:
+  - name: http2
+    nodePort: 30200
+    port: 80
+    protocol: TCP
+    targetPort: 8080

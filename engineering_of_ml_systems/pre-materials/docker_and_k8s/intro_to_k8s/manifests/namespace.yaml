@@ -1,0 +1,4 @@
+apiVersion: v1 # K8s provides a set of APIs to deal with different objects. This line specifies which API should be used to manage a Namespace object. 
+kind: Namespace # Object type
+metadata: # Metadata of the object
+  name: new-ns # Object name

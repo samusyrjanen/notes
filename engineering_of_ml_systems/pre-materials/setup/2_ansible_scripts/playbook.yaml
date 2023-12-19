@@ -1,0 +1,14 @@
+---
+- name: Install K8s cluster
+  hosts: openstack_vms
+  vars:
+    install_tools: true
+    copy_files: true
+
+  tasks:
+    - name: Install tools
+      ansible.builtin.include_tasks: tasks/install_tools.yaml
+      when: install_tools
+    
+    - name: Create a K8s cluster
+      ansible.builtin.include_tasks: tasks/create_cluster.yaml

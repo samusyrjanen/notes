@@ -1,0 +1,50 @@
+- name: Copy necessary scripts and resources for creating a K8s cluster and deploying the MLOps platform
+  ansible.builtin.copy:
+    src: ../../install_platform
+    dest: /home/ubuntu
+  when: copy_files
+
+- name: Find script files
+  ansible.builtin.find:
+    paths: ./install_platform
+    patterns: '*.sh'
+    recurse: yes
+  register: script_files
+  when: copy_files
+
+- name: Make scripts executable
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    mode: a+x
+  with_items: "{{ script_files.files }}"
+  when: copy_files
+
+- name: Get inernal IP
+  ansible.builtin.shell: |
+    echo $(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)
+  register: internal_ip
+
+- name: Get floating IP
+  ansible.builtin.shell: |
+    echo $(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
+  register: floating_ip
+
+- name: Create K8s cluster
+  ansible.builtin.shell: |
+    export HOST_IP="{{ internal_ip.stdout }}"
+    export FLOATING_IP="{{ floating_ip.stdout }}"
+    ./scripts/create_cluster.sh
+  args:
+    chdir: ./install_platform
+
+- name: Change API server IP in the cluster config
+  ansible.builtin.shell: |
+    sed -i 's|server:.*|server: https://{{ floating_ip.stdout }}:6443|g' ~/.kube/config
+  #with_items: "{{ floating_ip.stdout }}"
+
+- name: Copy Kube config back to local
+  ansible.builtin.fetch:
+    src: ~/.kube/config
+    dest: ~/.kube/mlops_config
+    flat: yes
+

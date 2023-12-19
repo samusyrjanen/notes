@@ -1,0 +1,101 @@
+name: Train
+description: Train a model, save the training metadata and the resulted artifacts
+  to MLflow
+inputs:
+- {name: train_set, type: Dataset, description: Input where the training dataset is
+    saved}
+- {name: test_set, type: Dataset, description: Input where the test dataset is saved}
+- {name: mlflow_experiment_name, type: String, description: Name of the MLflow experiment}
+- {name: mlflow_tracking_uri, type: String, description: URI of MLflow's tracking
+    server}
+- {name: mlflow_s3_endpoint_url, type: String, description: URL of MLflow's artifact
+    store (MinIO)}
+- {name: model_artifact_path, type: String, description: 'The path where the artifacts
+    of the model are stored in MLflow''s artifact store (MinIO). It''s relative to
+    the MLflow Run. '}
+- {name: alpha, type: Float}
+- {name: l1_ratio, type: Float}
+- {name: target, type: String, description: Target column name, default: quality,
+  optional: true}
+outputs:
+- {name: storage_uri, type: String}
+- {name: run_id, type: String}
+implementation:
+  container:
+    image: python:3.10
+    command:
+    - sh
+    - -c
+    - |2
+
+      if ! [ -x "$(command -v pip)" ]; then
+          python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip
+      fi
+
+      PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet     --no-warn-script-location 'pandas~=1.5.3' 'numpy' 'scikit-learn~=1.3.2' 'mlflow==2.3.2' 'boto3~=1.28.85' 'kfp==1.8.22' && "$0" "$@"
+    - sh
+    - -ec
+    - |
+      program_path=$(mktemp -d)
+      printf "%s" "$0" > "$program_path/ephemeral_component.py"
+      python3 -m kfp.v2.components.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+    - "\nimport kfp\nfrom kfp.v2 import dsl\nfrom kfp.v2.dsl import *\nfrom typing\
+      \ import *\n\ndef train(\n    train_set: Input[Dataset],\n    test_set: Input[Dataset],\n\
+      \    mlflow_experiment_name: str,\n    mlflow_tracking_uri: str,\n    mlflow_s3_endpoint_url:\
+      \ str,\n    model_artifact_path: str,\n    alpha: float,\n    l1_ratio: float,\n\
+      \    target: str = \"quality\"\n) -> NamedTuple(\"Output\", [(\"storage_uri\"\
+      , str), (\"run_id\", str),]):\n    \"\"\"\n    Train a model, save the training\
+      \ metadata and the resulted artifacts to MLflow\n    Args:\n        train_set:\
+      \ Input where the training dataset is saved\n        test_set: Input where the\
+      \ test dataset is saved\n        mlflow_experiment_name: Name of the MLflow\
+      \ experiment\n        mlflow_tracking_uri: URI of MLflow's tracking server\n\
+      \        mlflow_s3_endpoint_url: URL of MLflow's artifact store (MinIO)\n  \
+      \      model_artifact_path: The path where the artifacts of the model are stored\
+      \ in MLflow's artifact store (MinIO). It's relative to the MLflow Run. \n  \
+      \      alpha, l1_ratio: Hyperparameters that need to be configured\n       \
+      \ target: Target column name\n\n    Returns: \n        namedtuple(\"Output\"\
+      , [\"storage_uri\", \"run_id\"]) where storage_uri is the S3 URI of the saved\
+      \ model artifact \n        in the Mlflow's artifact store (MinIO) and run_id\
+      \ the ID of the MLflow run that produces the model\n    \"\"\"\n    import numpy\
+      \ as np\n    import pandas as pd\n    from sklearn.linear_model import ElasticNet\n\
+      \    from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score\n\
+      \    import mlflow\n    import mlflow.sklearn\n    import os\n    import logging\n\
+      \    from collections import namedtuple\n\n    logging.basicConfig(level=logging.INFO)\n\
+      \    logger = logging.getLogger(__name__)\n\n    def eval_metrics(actual, pred):\n\
+      \        rmse = np.sqrt(mean_squared_error(actual, pred))\n        mae = mean_absolute_error(actual,\
+      \ pred)\n        r2 = r2_score(actual, pred)\n        return rmse, mae, r2\n\
+      \n    os.environ[\"MLFLOW_S3_ENDPOINT_URL\"] = mlflow_s3_endpoint_url\n\n  \
+      \  # Load data\n    train = pd.read_csv(train_set.path)\n    test = pd.read_csv(test_set.path)\n\
+      \n    # The predicted column is \"quality\" which is a scalar from [3, 9]\n\
+      \    train_x = train.drop([target], axis=1)\n    test_x = test.drop([target],\
+      \ axis=1)\n    train_y = train[[target]]\n    test_y = test[[target]]\n\n  \
+      \  logger.info(f\"Using MLflow tracking URI: {mlflow_tracking_uri}\")\n    mlflow.set_tracking_uri(mlflow_tracking_uri)\n\
+      \n    logger.info(f\"Using MLflow experiment: {mlflow_experiment_name}\")\n\
+      \    mlflow.set_experiment(mlflow_experiment_name)\n\n    with mlflow.start_run()\
+      \ as run:\n        run_id = run.info.run_id\n        logger.info(f\"Run ID:\
+      \ {run_id}\")\n        model = ElasticNet(alpha=alpha, l1_ratio=l1_ratio, random_state=42)\n\
+      \n        logger.info(\"Fitting model...\")\n        model.fit(train_x, train_y)\n\
+      \n        logger.info(\"Predicting...\")\n        predicted_qualities = model.predict(test_x)\n\
+      \        (rmse, mae, r2) = eval_metrics(test_y, predicted_qualities)\n     \
+      \   logger.info(\"Elasticnet model (alpha=%f, l1_ratio=%f):\" % (alpha, l1_ratio))\n\
+      \        logger.info(\"RMSE: %s\" % rmse)\n        logger.info(\"MAE: %s\" %\
+      \ mae)\n        logger.info(\"R2: %s\" % r2)\n\n        logger.info(\"Logging\
+      \ parameters and metrics to MLflow\")\n        mlflow.log_param(\"alpha\", alpha)\n\
+      \        mlflow.log_param(\"l1_ratio\", l1_ratio)\n        mlflow.log_metric(\"\
+      rmse\", rmse)\n        mlflow.log_metric(\"r2\", r2)\n        mlflow.log_metric(\"\
+      mae\", mae)\n\n        logger.info(\"Logging trained model\")\n        mlflow.sklearn.log_model(\n\
+      \            sk_model=model,\n            artifact_path=model_artifact_path,\n\
+      \            registered_model_name=\"ElasticnetWineModel\",\n            serialization_format=\"\
+      pickle\"\n        )\n\n        logger.info(\"Logging predictions artifact to\
+      \ MLflow\")\n        np.save(\"predictions\", predicted_qualities)\n       \
+      \ mlflow.log_artifact(\n            local_path=\"predictions.npy\",\n      \
+      \      artifact_path=\"predicted_qualities\"\n        )\n\n        # Prepare\
+      \ output\n        output = namedtuple(\"Output\", [\"storage_uri\", \"run_id\"\
+      ])\n\n        # use get_artifact_uri to get the absolute S3 URI (s3://mlflow/<mlflow-experiment-id>/<mlflow-run-id>/artifacts/<model_artifact_path>)\n\
+      \        return output(mlflow.get_artifact_uri(artifact_path=model_artifact_path),\
+      \ run_id)\n\n"
+    args:
+    - --executor_input
+    - {executorInput: null}
+    - --function_to_execute
+    - train

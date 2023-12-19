@@ -1,0 +1,20 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: example-app-ingress
+  namespace: new-ns
+  annotations:
+    kubernetes.io/ingress.class: nginx #We're using NGINX to route external traffic
+    nginx.ingress.kubernetes.il/add-base-url: "true"
+spec:
+  rules:
+  - host: example-app.local #host name
+    http:
+      paths:
+        - backend:
+            service:
+              name: example-app-service #The traffic should be routed to Service named "example-app-service", this should match the name we specified in service.yaml
+              port:
+                number: 8081 #As specified in service.yaml, the "example-app-service" Service is listening on port 8081
+          path: /
+          pathType: Prefix

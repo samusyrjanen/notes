@@ -1,0 +1,23 @@
+apiVersion: apps/v1 # K8s provides a set of APIs to deal with different objects. This line specifies which API should be used to manage a Deployment object. 
+kind: Deployment # The object type
+metadata: # Metadata of the object
+  name: example-app # Object name
+  namespace: new-ns # To which namespace the deployment should be created
+  labels: # Labels, which are key-value pairs, associated with the object. Labels can be used to select objects
+    app: example-app
+
+spec: # This part specifies the desired state of the deployment object
+  selector: # Specifies how the deployment knows which pods it should manage
+    matchLabels: # This deployment should manage pods with the label "app" set to "userinfo-app." It matches the labels defined in the pod template later.
+      app: userinfo-app
+      
+  template: # pod template that the Deployment will use to create and manage pods.
+    metadata:
+      labels:
+        app: userinfo-app # This label should matched to matchLabels in the deployment spec
+    spec: # This part describes the pod's specification, including the containers it should run.
+      containers:
+      - name: userinfo-app
+        image: docker.io/yumol/myapp:v1 # Which image the container should be created from
+        ports: # This defines the ports that the container will listen on.
+        - containerPort: 8080

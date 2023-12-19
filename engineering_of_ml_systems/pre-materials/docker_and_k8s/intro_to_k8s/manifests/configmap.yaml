@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: useraccount-configmap
+  namespace: new-ns
+data:
+  USER_ACCOUNT: "user1"

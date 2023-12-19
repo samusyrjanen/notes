@@ -1,0 +1,49 @@
+{
+  "id": "38a5773e-b19e-4884-8a27-1836e897df32",
+  "name": "bike_project",
+  "description": null,
+  "dashboard": {
+    "name": "bike_project",
+    "panels": [
+      {
+        "type": "evidently.ui.dashboards.DashboardPanelTestSuiteCounter",
+        "id": "49d26dd0-1451-4d2e-b970-985c42ec0cbe",
+        "title": "R2 Score",
+        "filter": {
+          "metadata_values": {},
+          "tag_values": [],
+          "include_test_suites": true
+        },
+        "size": 2,
+        "agg": "last",
+        "test_filters": [],
+        "statuses": [
+          "SUCCESS"
+        ]
+      },
+      {
+        "type": "evidently.ui.dashboards.DashboardPanelPlot",
+        "id": "49d26dd0-1451-4d2e-b970-985c42ec0cbe",
+        "title": "R2 Score",
+        "filter": {
+          "metadata_values": {},
+          "tag_values": [],
+          "include_test_suites": false
+        },
+        "size": 2,
+        "values": [
+          {
+            "field_path": "current.r2_score",
+            "metric_id": "RegressionQualityMetric",
+            "metric_hash": null,
+            "metric_args": {},
+            "legend": "R2"
+          }
+        ],
+        "plot_type": "line"
+      }
+    ]
+  },
+  "date_from": null,
+  "date_to": null
+}
